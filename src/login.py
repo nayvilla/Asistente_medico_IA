@@ -1,0 +1,813 @@
+#----------------------------------------------------------------------------
+#//////////////////////////IMPORTAR LIBRERAS/////////////////////////////////
+#Importacion de librerias para flask
+from flask import Flask, render_template,make_response, redirect, url_for, request, flash
+#Importacion de librerias para proteccion contra peticiones no logeadas
+from flask_wtf.csrf import CSRFProtect
+from config import config
+#from time, time.sleep import time
+import time
+import subprocess
+#Importacion de librerias para el registro y login
+from flask_login import LoginManager, login_user, logout_user, login_required
+from models.ModelUser import ModelUser, subirusuario
+from models.entities.User import hash
+from models.entities.User import User
+import json
+from werkzeug.security import check_password_hash, generate_password_hash
+#Importacion de libreria para activar la clase usuario
+from flask_login import UserMixin
+#Importacion de libreria para la base de datos
+from flask_mysqldb import MySQL
+import mysql.connector
+#Importacion de librerias charbot
+import re
+import long_responses as long
+import random
+#librerias para mqtt
+import paho.mqtt.client as mqtt
+#////////////////////////////////////////////////////////////////////////////
+#----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
+#//////////////////////////DECLARACION DE VARIABLES//////////////////////////
+#inicializacion de variables de la base de datos
+resultado_diagnostico=""
+Nombre=""
+Cedula="0"
+Genero=""
+Edad="0"
+Temperatura=""
+Secrecion_Nasal=""
+Congestion_Nasal=""
+Dolor_garganta=""
+Lagrimeo=""
+Tos=""
+Estornudos=""
+Sensacion_ahogo=""
+Fiebre=""
+dolor_articular=""
+Malestar_general=""
+Dolor_cabeza=""
+Picazon_nasal=""
+Hinchazon_ojos=""
+Ronquidos=""
+Dolor_muscular=""
+Perdida_voz=""
+Dolor_ojos=""
+Diarrea=""
+Nauseas=""
+Dolor_barriga=""
+Dolor_pecho=""
+Perdida_apetito=""
+Escalofrios=""
+Diagnostico="none"
+temp="0"
+bpm="0"
+spo2="0"
+temp2="0"
+bpm2="0"
+spo22="0"
+signosvitales2="0"
+#guardar respuestas del chatbot para ver la gravedad del dolor y la tos
+g=1
+h=1
+i=1
+j=1
+p=1
+sin=1
+sensor=1
+jp=1
+resultado_diagnostico_str='d'
+#variables para conectar a la base de datos
+conexion1=mysql.connector.connect(host="localhost", user="paciente", passwd="123456789", database="sintomas")
+cursor1=conexion1.cursor()
+#Variable para crear entorno de flask
+app = Flask(__name__)
+#////////////////////////////////////////////////////////////////////////////
+#----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
+#//////////////////////////DECLARACION DE FUNCIONES//////////////////////////
+#---------------------------Funciones chatbot--------------------------------
+#----------------------------------------------------------------------------
+#Funcion para calcular la pobabilidad del bot
+def message_probability(user_message, recognised_words, single_response=False, required_words=[]):
+    message_certainty = 0
+    has_required_words = True
+
+    # Cuenta cuántas palabras están en cada mensaje predefinido
+    for word in user_message:
+        if word in recognised_words:
+            message_certainty += 1
+
+    # Calcula el porcentaje de palabras reconocidas ingresadas por el paciente
+    percentage = float(message_certainty) / float(len(recognised_words))
+
+    # Revisar que tiene la palabra requerida
+    for word in required_words:
+        if word not in user_message:
+            has_required_words = False
+            break
+
+    # Must either have the required words, or be a single response
+    if has_required_words or single_response:
+        return int(percentage * 100)
+    else:
+        return 0
+#funcion para conectarse al broker
+def on_connect(client, userdata, flags, rc):
+    print("Se conecto con mqtt " + str(rc))
+    client.subscribe("chatboot/sensores")
+
+#funcion para leer mediante el topic    
+def on_message(client, userdata, msg):
+    global temp, bpm, spo2
+    efe=(str(msg.payload)).replace("'","")      
+    efe=efe.replace("b","")
+    #print (efe)
+    g=efe.split(",")
+    temp=g[0]
+    bpm=g[1]
+    spo2=g[2]
+
+client = mqtt.Client()
+client.on_connect= on_connect
+client.on_message = on_message
+client.connect("34.125.127.48", 1883, 60)
+
+client.loop_start()
+#Respuestas variables
+
+def respuesta_sintomas():
+    res_sintoma = ["¿Algún otro sintoma?",
+                "Listo, ¿Qué más tienes?",
+                "¿Algún otro dolor?",
+                "¿Alguna otra molestia?"][
+        random.randrange(4)]
+    return res_sintoma
+def respuesta_sintomas2():
+    global temp2,spo2,bpm2
+    res_sintoma = ["Con gusto, tus signos vitales son: ",
+                "Tienes los siguientes valores: ",
+                "Estos son: "][
+        random.randrange(3)]
+    return (res_sintoma+signosvitales2)
+
+#Funcion para determina la respuesta del bot que tiene mas alta probabilidad
+def check_all_messages(message):
+    highest_prob_list = {}
+
+    # Simplifica la creación de respuestas y las agrega al directorio
+    def response(bot_response, list_of_words, single_response=False, required_words=[]):
+        nonlocal highest_prob_list
+        highest_prob_list[bot_response] = message_probability(message, list_of_words, single_response, required_words)
+
+    # Respuestas  -------------------------------------------------------------------------------------------------------
+    #------------------------------------------------------Conversacion-------------------------------------------------- 
+    response('Hola de nuevo!. Cuentame, ¿Cuáles son tus síntomas?😄'+ '*40', ['hola', 'encantado', 'hello', 'hi', 'hey', 'sup', 'heyo'], single_response=True)
+    response('Cuídate 👋🏻, recuerda todo queda entre nostros 😇'+ '*41', ['hasta', 'chao', 'luego', 'adios', 'adiós', 'cuidate', 'cuídate', 'ir', 'despues', 'después', 'bai', 'chau', 'chaitos', 'bye', 'goodbye'], single_response=True)
+    response('Estoy muy bien gracias. Dime, ¿Cuáles son tus síntomas?'+ '*42', ['como', 'cómo', 'estas'], required_words=['como', 'cómo'])
+    response('De nada estoy aquí para servirte, espero verte de nuevo 😄'+ '*43', ['gracias', 'thank', 'thanks'], single_response=True)
+    #------------------------------------------Respuestas largas de conversacion-----------------------------------------
+    response(long.R_AYUDAR, ['haces', 'opciones', 'ayudarme', 'ayudame'], single_response=True)
+    response(long.R_PAPA, ['creo', 'creador', 'papá', 'papa', 'padre'], single_response=True)
+    #------------------------------------------------------Sintomas------------------------------------------------------
+    #Secrecion nasal
+    response(respuesta_sintomas()+ '*1', ['moquera', 'secrecion', 'nasal', 'secreción', 'mocos', 'moquillo'], single_response=True)
+    #Rinorrea (congestión nasal) 
+    response(respuesta_sintomas()+ '*2', ['congestion', 'congestión', 'nasal', 'obstrucción', 'obstruccion'], single_response=True)
+    #Dolor de garganta 
+    response('El dolor de garganta es, ¿Leve, moderado o fuerte?'+'*100', ['garganta'], required_words=['garganta'])
+    #-----------------Dolor leve
+    response(respuesta_sintomas()+ '*3', ['leve', 'levemente', 'poco'], single_response=True)
+    #-----------------Dolor moderado
+    response(respuesta_sintomas()+ '*4', ['moderado', 'normal', 'regular'], single_response=True)
+    #-----------------Dolor fuerte
+    response(respuesta_sintomas()+ '*5', ['fuerte', 'mucho'], single_response=True)
+    #Lagrimeo
+    response(respuesta_sintomas()+ '*6', ['lagrimea', 'llorosos', 'lagrimeo'], single_response=True)
+    #Tos(seca/con flema)
+    response(respuesta_sintomas()+ '*7', ['tos', 'seca', 'sin', 'flema'], single_response=True)
+    response('Con flema o sin flema'+'*101', ['tos', 'toser'], single_response=True)
+    response(respuesta_sintomas()+ '*8', ['tos', 'con', 'flema'], single_response=True)
+    #Estornudos
+    response(respuesta_sintomas()+ '*9', ['estornudar', 'estornudo', 'estornudos', 'estornudando'], single_response=True)
+    #Sensación de ahogo
+    response(respuesta_sintomas()+ '*10', ['respirando', 'respiro', 'respirar', 'falta', 'aire'], single_response=True)
+    #Fiebre 
+    response(respuesta_sintomas()+ '*11', ['fiebre', 'caliente', 'calentura'], single_response=True)
+    #Dolor articular 
+    response('El dolor de las articulaciones es, ¿Leve, moderado o fuerte?'+'*102', ['articular', 'articulaciones'], single_response=True)
+    #Malestar General
+    response(respuesta_sintomas()+ '*12', ['malestar', 'fatiga', 'dolor', 'cuerpo', 'cansado', 'cansancio', 'perdida', 'animo', 'pérdida', 'ánimo'], single_response=True)
+    #Dolor de cabeza
+    response('El dolor de la cabeza es, ¿Leve, moderado o fuerte?'+'*103', ['cabeza', 'migraña', 'cefalea', 'jaqueca'], single_response=True)
+    #Picazon nasal
+    response(respuesta_sintomas()+ '*13', ['pica', 'picazón', 'picazon', 'hormigeo', 'nariz', 'comezón', 'comezon'], single_response=True)
+    #Hinchazon ojos
+    response(respuesta_sintomas()+ '*14', ['hinchazon', 'hinchazón', 'hinchados', 'bolsas', 'ojeras'], single_response=True)
+    #Ronquidos
+    response(respuesta_sintomas()+ '*15', ['ronca', 'ronco', 'ronquidos', 'roncando'], single_response=True)
+    #Mialgia (Dolor muscular)
+    response(respuesta_sintomas()+ '*16', ['muscular', 'músculos', 'músculo', 'musculos', 'musculo', 'mialgia'], single_response=True)
+    #Perdida de la voz (Diafonia)
+    response(respuesta_sintomas()+ '*17', ['voz', 'diafonia', 'diafonía'], single_response=True)
+    #Dolor ocular
+    response(respuesta_sintomas()+ '*18', ['ocular', 'ojos'], single_response=True) #revisar OJOS
+    #Diarrea
+    response(respuesta_sintomas()+ '*19', ['diarrea'], single_response=True)
+    #Nauseas
+    response(respuesta_sintomas()+ '*20', ['nauseas', 'arcadas', 'vomito'], single_response=True)
+    #Dolor de barriga
+    response(respuesta_sintomas()+ '*21', ['barriga', 'abdomen'], single_response=True)
+    #Dolor pecho
+    response(respuesta_sintomas()+ '*22', ['pecho', 'tórax', 'torax'], single_response=True)
+    #Perdida apetito
+    response(respuesta_sintomas()+ '*23', ['apetito', 'comer', 'hambre', 'anorexia'], single_response=True)
+    #Escalofríos
+    response(respuesta_sintomas()+ '*24', ['escalofríos', 'escalofrios', 'temblor', 'temblores', 'sacudida', 'sacudidas', 'espasmo', 'espasmos'], single_response=True)
+    #Diagnostico
+    response('En breves momentos te dare tu diagnóstico'+ '*25', ['diagnostico', 'diagnóstico', 'no', 'nada'], single_response=True)
+    response(respuesta_sintomas2()+ '*26', ['signos', 'sensores','vitales'], single_response=True)
+    #--------------------------------------------------------------------------------------------------------------------
+    #Respuesta con la probabilidad mas alta
+    best_match = max(highest_prob_list, key=highest_prob_list.get)
+    #si la entrada no se entiende se pide que escriba de nuevo
+    return long.unknown() if highest_prob_list[best_match] < 1 else best_match
+
+# Funcion para tener la respuesta del bot
+def get_response(user_input):
+    split_message = re.split(r'\s+|[,;?!.-]\s*', user_input.lower())
+    response0 = check_all_messages(split_message)
+    
+    split_message = re.split(r'\s+|[,;?!.-]\s*', user_input.lower())
+    response0 = check_all_messages(split_message)
+    gt=response0.split("*")
+    if(gt[1]=="26"):
+        return gt[0]
+    else:
+        global response
+        response = response0.translate({ord(letter): None for letter in '12345678910*'})
+        base_numeros(response0)
+        return response
+    return response        
+def base_numeros(respuesta_num):
+    respuesta_num= respuesta_num.split('*')
+    #print(respuesta_num[1])
+    global sin, resultado_diagnostico_str, g, p, h, i, j, sensor, jp, Nombre, Cedula, Genero, Edad, Temperatura, Secrecion_Nasal, Congestion_Nasal, Dolor_garganta, Lagrimeo, Tos, Estornudos, Sensacion_ahogo, Fiebre, dolor_articular, Malestar_general, Dolor_cabeza, Picazon_nasal, Hinchazon_ojos, Ronquidos, Dolor_muscular, Perdida_voz, Dolor_ojos, Diarrea, Nauseas, Dolor_barriga, Dolor_pecho, Perdida_apetito, Escalofrios
+    #------------------------dolor garganta gravedad
+    
+    
+    if (respuesta_num[1]== "100"):
+        g=0
+    if (g==0 and respuesta_num[1]=='3'):
+        respuesta_num[1]='1003'
+        g=1 #resetear g=1, si no siempre va a estar en 100
+    elif (g==0 and respuesta_num[1]=='4'):
+        respuesta_num[1]='1004'
+        g=1
+    elif (g==0 and respuesta_num[1]=='5'):
+        respuesta_num[1]='1005'
+        g=1
+    #------------------------dolor garganta articular
+    if (respuesta_num[1]== "102"):
+        h=0
+    if (h==0 and respuesta_num[1]=='3'):
+        respuesta_num[1]='1023'
+        h=1
+    elif (h==0 and respuesta_num[1]=='4'):
+        respuesta_num[1]='1024'
+        h=1
+    elif (h==0 and respuesta_num[1]=='5'):
+        respuesta_num[1]='1025'
+        h=1
+    #------------------------dolor garganta cabeza
+    if (respuesta_num[1]== "103"):
+        i=0
+    if (i==0 and respuesta_num[1]=='3'):
+        respuesta_num[1]='1033'
+        i=1
+    elif (i==0 and respuesta_num[1]=='4'):
+        respuesta_num[1]='1034'
+        i=1
+    elif (i==0 and respuesta_num[1]=='5'):
+        respuesta_num[1]='1035'
+        i=1
+    #------------------------tos
+    if (respuesta_num[1]== "101"):
+        j=0
+    if (j==0 and respuesta_num[1]=='7'):
+        respuesta_num[1]='1017'
+        j=1
+    elif (j==0 and respuesta_num[1]=='8'):
+        respuesta_num[1]='1018'
+        j=1
+    #print(respuesta_num[1])
+    #----------------------------------------------
+    if (respuesta_num[1]=="1"):
+        Secrecion_Nasal="si"
+    if (respuesta_num[1]=="2"):
+        Congestion_Nasal="si"
+    if (respuesta_num[1]=="1003"):
+        Dolor_garganta="leve"
+    if (respuesta_num[1]=="1004"):
+        Dolor_garganta="moderado"
+    if (respuesta_num[1]=="1005"):
+        Dolor_garganta="fuerte"
+    if (respuesta_num[1]=="6"):
+        Lagrimeo="si"
+    if (respuesta_num[1]=="1017"):
+        Tos="seca"
+    if (respuesta_num[1]=="1018"):
+        Tos="con flema"
+    if (respuesta_num[1]=="9"):
+        Estornudos="si"
+    if (respuesta_num[1]=="10"):
+        Sensacion_ahogo="si"
+    if (respuesta_num[1]=="11"):
+        Fiebre="si"
+    if (respuesta_num[1]=="1023"):
+        dolor_articular="leve"
+    if (respuesta_num[1]=="1024"):
+        dolor_articular="moderado"
+    if (respuesta_num[1]=="1025"):
+        dolor_articular="fuerte"
+    if (respuesta_num[1]=="12"):
+        Malestar_general="si"
+    if (respuesta_num[1]=="1033"):
+        Dolor_cabeza="leve"
+    if (respuesta_num[1]=="1034"):
+        Dolor_cabeza="moderado"
+    if (respuesta_num[1]=="1035"):
+        Dolor_cabeza="fuerte"
+    if (respuesta_num[1]=="13"):
+        Picazon_nasal="si"
+    if (respuesta_num[1]=="14"):
+        Hinchazon_ojos="si"
+    if (respuesta_num[1]=="15"):
+        Ronquidos="si"
+    if (respuesta_num[1]=="16"):
+        Dolor_muscular="si"
+    if (respuesta_num[1]=="17"):
+        Perdida_voz="si"
+    if (respuesta_num[1]=="18"):
+        Dolor_ojos="si"
+    if (respuesta_num[1]=="19"):
+        Diarrea="si"
+    if (respuesta_num[1]=="20"):
+        Nauseas="si"
+    if (respuesta_num[1]=="21"):
+        Dolor_barriga="si"
+    if (respuesta_num[1]=="22"):
+        Dolor_pecho="si"
+    if (respuesta_num[1]=="23"):
+        Perdida_apetito="si"
+    if (respuesta_num[1]=="24"):
+        Escalofrios="si"
+    if (float(temp2)>40):
+        Fiebre="si"
+    else :
+        Fiebre="no"
+    if (respuesta_num[1]=="26"):
+        
+        sin=0
+    if (respuesta_num[1]=="25"):      
+       # Diagnostico="sadasdasd"
+        sql=("INSERT INTO pacientes (Nombre, Cedula, Genero, Edad, BPM, SPO2, Temperatura, Secrecion_Nasal, Congestion_Nasal, Dolor_garganta, Lagrimeo, Tos, Estornudos, Sensacion_ahogo, Fiebre, dolor_articular, Malestar_general, Dolor_cabeza, Picazon_nasal, Hinchazon_ojos, Ronquidos, Dolor_muscular, Perdida_voz, Dolor_ojos, Diarrea, Nauseas, Dolor_barriga, Dolor_pecho, Perdida_apetito, Escalofrios, Diagnostico) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)")
+        datos=(Nombre, Cedula, Genero, Edad, bpm2, spo22,  temp2, Secrecion_Nasal, Congestion_Nasal, Dolor_garganta, Lagrimeo, Tos, Estornudos, Sensacion_ahogo, Fiebre, dolor_articular, Malestar_general, Dolor_cabeza, Picazon_nasal, Hinchazon_ojos, Ronquidos, Dolor_muscular, Perdida_voz, Dolor_ojos, Diarrea, Nauseas, Dolor_barriga, Dolor_pecho, Perdida_apetito, Escalofrios, Diagnostico)
+        cursor1.execute(sql, datos)        
+        conexion1.commit()
+        ejecutar_Script()
+        #Respuesta de diagnostico para el chatbot
+        query = 'SELECT Diagnostico FROM pacientes ORDER BY ID_Paciente DESC LIMIT 1'
+        cursor1.execute(query)
+        resultado_diagnostico = cursor1.fetchall()
+        #Trasformar tuple to string        
+        resultado_diagnostico_str = ''.join(resultado_diagnostico[0])
+        #reseteo de variables
+        Secrecion_Nasal=""
+        Congestion_Nasal=""
+        Dolor_garganta=""
+        Lagrimeo=""
+        Tos=""
+        Estornudos=""
+        Sensacion_ahogo=""
+        Fiebre=""
+        dolor_articular=""
+        Malestar_general=""
+        Dolor_cabeza=""
+        Picazon_nasal=""
+        Hinchazon_ojos=""
+        Ronquidos=""
+        Dolor_muscular=""
+        Perdida_voz=""
+        Dolor_ojos=""
+        Diarrea=""
+        Nauseas=""
+        Dolor_barriga=""
+        Dolor_pecho=""
+        Perdida_apetito=""
+        Escalofrios=""
+        p=0
+    else:
+        print("No")
+#---------------------Funciones del diagnostico por IA-----------------------
+#----------------------------------------------------------------------------
+def ejecutar_Script():
+    client.publish("chatboot/ia", "databaseia") 
+    time.sleep(10) 
+
+
+#------------------------Funciones de registro y Login-----------------------
+#----------------------------------------------------------------------------
+#Proteccion de peticiones no logeadas
+csrf = CSRFProtect()
+#Conexion con la base de datos
+db = MySQL(app)
+#Control de login
+login_manager_app = LoginManager(app)
+@login_manager_app.user_loader
+def load_user(id):
+    return ModelUser.get_by_id(db, id)
+
+#Ruta raiz, redirigirme hacia el LOGIN
+@app.route('/')
+def index():
+    return redirect(url_for('login'))
+
+#Permita metodo get y post
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    global usuariologin, Nombre, Edad, Genero, Cedula
+    if request.method=='POST':
+        #metodo post para comprobar si ya lo enviamos
+        #print(request.form['email'])
+        #print(request.form['password'])
+        user = User(0, request.form['email'], request.form['password'])
+        usuariologin=request.form['email']
+        #Lo que me retorne el metodo modeluser
+        logged_user = ModelUser.login(db, user)
+        if logged_user != None:
+            if logged_user.password:
+                #Almacene como usuario logeado
+                login_user(logged_user)
+                print ("------------------------------")
+                #print (usuariologin)
+                #cONSULTA DE LOS DATOS DEL USUARIO REGISTRADO                
+                query = "SELECT fullname, cedula, genero, edad FROM user WHERE username =%s"
+                correo_a = (usuariologin,)
+                cursor1.execute(query, correo_a)
+                myresult = cursor1.fetchall()
+                for x in myresult:
+                    #print(x)
+                    #print(x[1])
+                    Nombre= x[0]
+                    Cedula= x[1]
+                    Genero= x[2]
+                    Edad= x[3]
+                print(Nombre, Cedula, Genero, Edad)
+                print ("------------------------------")
+                #print("Usuario existente"+ Nombre)
+                #////////////////////////////////////////////////////////////////////////////////
+                #//////////////////////////creacion de tablas para cada historial////////////////
+                
+                #--------------------------------------------------------------------------------
+                #////////////////////////////////////////////////////////////////////////////////
+                return redirect(url_for('Sensor'))
+                #return redirect(url_for('home'))
+            else:
+                flash("¡Contraseña Invalida!")
+                return render_template('auth/login.html')
+        else:
+            flash("¡Usuario no existente!")
+            print("¡Usuario no existente amigo")
+            return render_template('auth/login.html')        
+    else:
+        #metodo get si recien vamos a ingresar los datos
+        return render_template('auth/login.html')
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/Registro', methods=['GET', 'POST'])
+def Registro():
+    if request.method=='POST':
+        #metodo post para comprobar si ya lo enviamos
+        
+        em=(request.form['email'])
+        usr=(request.form['username'])
+        ce=(request.form['cedula'])
+        gen=(request.form['genero'])
+        eda=(request.form['edad'])
+        passw=(request.form['password'])
+        has=(hash.has(passw))
+        print (em, usr, has)
+        subirusuario.sub(db, em, has, usr, ce, gen, eda)
+        return render_template('auth/login.html') 
+                  
+    else:
+        return render_template('auth/registro.html')
+
+@app.route('/home')
+@login_required
+def home():
+    return render_template('home.html')
+
+@app.route('/chat')
+@login_required
+def chat():
+    global signosvitales2,temp2,spo22,bpm2,temp, spo2, jp, bpm, resultado_diagnostico, sensor
+    print (sensor, jp)
+    if (sensor==0 and jp==0):
+        temp2=temp
+        spo22=spo2
+        bpm2=bpm
+        jp=2
+        signosvitales2="Ritmo Cardiaco="+str(bpm2)+" Bpm, Nivel de oxigeno en la sange="+str(spo22)+" Spo2,  Temperatura del cuerpo="+str(temp2)+" °C"
+    #Respuesta de diagnostico para el chatbot
+    query = 'SELECT Diagnostico FROM pacientes ORDER BY ID_Paciente DESC LIMIT 1'
+    cursor1.execute(query)
+    resultado_diagnostico = cursor1.fetchall()
+    #Trasformar tuple to string
+    resultado_diagnostico_str = ''.join(resultado_diagnostico[0])  
+    return render_template("index.html", lol=resultado_diagnostico_str)
+    
+
+def estatus_401(error):
+    return redirect(url_for('login'))
+
+
+def estatus_404(error):
+    return "<h1>Pagina no encontrada</h1>", 404
+
+@app.route('/safe')
+@login_required
+def safe():
+    return "<h1>Vista protegida por login</h1>"
+
+@app.route("/get")
+@login_required
+def get_bot_response():
+    global p
+    userText = request.args.get('msg')
+    if (p==1):
+        return get_response(userText)
+        
+    elif (p==0): 
+        p=1
+        return 'Usted tiene '+resultado_diagnostico_str+' se recomienda acudir a un médico para ser recetado'
+        
+
+
+@app.route('/Sensor')
+@login_required
+def Sensor():
+    
+    global sensor,jp
+    sensor=0
+    jp=0  
+    return render_template('index2.html')
+
+@app.route("/Historial")
+@login_required
+def component():
+    #-----------------------------------------------------------------------------------------------------------------------------------------
+    #--------------------------------------------------Creacion del historial medico----------------------------------------------------------
+    #Titulos de la tabla para el historial
+    headings = ("Fecha - Hora", "Nombre", "Cédula", "Género", "Edad", "BPM", "SPO2", "Temperatura", "Síntomas", "Diagnóstico")
+    #CONSULTA DE LOS usuarios repetidos por cedula 
+    cedula= Cedula       
+    #cursor1.execute("SELECT Nombre, Genero, COUNT(C) FROM pacientes GROUP BY Nombre HAVING COUNT(Nombre) > 1")
+    sql="SELECT Fecha, Nombre, Cedula, Genero, Edad, BPM, SPO2, Temperatura, Secrecion_Nasal, Congestion_Nasal, Dolor_garganta, Lagrimeo, Tos, Estornudos, Sensacion_ahogo, Fiebre, dolor_articular, Malestar_general, Dolor_cabeza, Picazon_nasal, Hinchazon_ojos, Ronquidos, Dolor_muscular, Perdida_voz, Dolor_ojos, Diarrea, Nauseas, Dolor_barriga, Dolor_pecho, Perdida_apetito, Escalofrios, Diagnostico FROM pacientes WHERE Cedula=%s"
+    cedula1 = (cedula,)
+    cursor1.execute(sql,cedula1)
+    #Guardar consulta en una variable  
+    a= cursor1.fetchall()    
+    #print(a)      
+    #print("-////////////////////////////////////////////////////////////////////////////////////////////////-")    
+    lol = []
+    for row in a:
+        #print(row)
+        #print(type(row))
+        n0= row[0]
+        n1= n0.strftime("%m/%d/%Y, %H:%M:%S")
+        #print(type(n0.strftime("%m/%d/%Y, %H:%M:%S")))
+        n2= row[1]
+        #print(n2)
+        n3= row[2]
+        #print(n3)
+        n4= row[3]
+        #print(n4)
+        n5= row[4]
+        #print(n5)
+        n6= row[5]
+        #print(n6)
+        n7= row[6]
+        #print(n7)
+        n8= row[7]
+        #print(n8)
+        #----------------------------------------------
+        if (row[8]=="si"):
+            s1="Secreción Nasal"
+            #print(s1)
+        else:
+            s1=""
+
+        if (row[9]=="si"):
+            s2="Congestión Nasal"
+            #print(s2)
+        else:
+            s2=""
+
+        if (row[10]=="leve"):
+            s3="Dolor garganta leve"
+            #print(s3)
+        elif (row[10]=="moderado"):
+            s3="Dolor garganta moderado"
+            #print(s3)
+        elif (row[10]=="fuerte"):
+            s3="Dolor garganta fuerte"
+            #print(s3)
+        else:
+            s3=""
+
+        if (row[11]=='si'):
+            s4="Lagrimeo"
+            #print(s4)
+        else:
+            s4=""
+
+        if (row[12]=="seca"):
+            s5="Tos seca"
+            #print(s5)
+        elif (row[12]=="con flema"):
+            s5="Tos con flema"
+            #print(s5)
+        else:
+            s5=""
+
+        if (row[13]=="si"):
+            s6="Estornudos"
+            #print(s6)
+        else:
+            s6=""
+
+        if (row[14]=="si"):
+            s7="Sensación de ahogo"
+            #print(s7)
+        else:
+            s7=""
+
+        if (row[15]=="si"):
+            s8="Fiebre"
+            #print(s8)
+        else:
+            s8=""
+
+        if (row[16]=="leve"):
+            s9="Dolor articular leve"
+            #print(s9)
+        elif (row[16]=="moderado"):
+            s9="Dolor articular moderado"
+            #print(s9)
+        elif (row[16]=="fuerte"):
+            s9="Dolor articular fuerte"
+            #print(s9)
+        else:    
+            s9=""
+
+        if (row[17]=="si"):
+            s10="Malestar general"
+            #print(s10)
+        else:    
+            s10=""    
+
+        if (row[18]=="leve"):
+            s11="Dolor cabeza leve"
+        #    print(s11)
+        elif (row[18]=="moderado"):
+            s11="Dolor cabeza moderado"
+        #   print(s11)
+        elif (row[18]=="fuerte"):
+            s11="Dolor cabeza fuerte"
+        #    print(s11)
+        else:    
+            s11=""    
+
+        if (row[19]=="si"):
+            s12="Picazón nasal"
+        #    print(s12)
+        else:    
+            s12=""
+
+        if (row[20]=="si"):
+            s13="Hinchazón de ojos"
+        #    print(s13)
+        else:    
+            s13=""
+
+        if (row[21]=="si"):
+            s14="Ronquidos"
+        #    print(s14)
+        else:    
+            s14=""
+
+        if (row[22]=="si"):
+            s15="Dolor muscular"
+        #   print(s15)
+        else:    
+            s15=""
+
+        if (row[23]=="si"):
+            s16="Pérdida de la voz"
+        #    print(s16)
+        else:    
+            s16=""
+
+        if (row[24]=="si"):
+            s17="Dolor de ojos"
+        #    print(s17)
+        else:    
+            s17=""
+
+        if (row[25]=="si"):
+            s18="Diarrea"
+        #    print(s18)
+        else:    
+            s18=""
+
+        if (row[26]=="si"):
+            s19="Nauseas"
+        #    print(s19)
+        else:    
+            s19=""
+
+        if (row[27]=="si"):
+            s20="Dolor de barriga"
+        #    print(s20)
+        else:    
+            s20=""
+
+        if (row[28]=="si"):
+            s21="Dolor de pecho"
+        #    print(s21)
+        else:    
+            s21=""
+
+        if (row[29]=="si"):
+            s22="Pérdida del apetito"
+        #    print(s22)
+        else:    
+            s22=""
+
+        if (row[30]=="si"):
+            s23="Escalofríos"
+        #    print(s23)
+        else:    
+            s23=""
+        #Creacion de lista de sintomas
+        list_sintomas= [s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15,s16,s17,s18,s19,s20,s21,s22,s23]
+        #Eliminar valores vacios de la lista
+        for i in range(len(list_sintomas)-1, -1, -1):
+            if not list_sintomas[i]:
+                del list_sintomas[i]
+        #Concatenacion de sintomas
+        C_sintomas= ", ".join(list_sintomas)
+        #print(C_sintomas)
+        #Obtencion de diagnostico
+        d= row[31]
+        #print(d)
+        #------------------------------Creacion de una lista completa para el historial-------------------------
+        list_completa=[n1,n2,n3,n4,n5,n6,n7,n8,C_sintomas,d]
+        #Guardado de consultas en una lista llamda lol
+        lol.append(list_completa)
+    #Transformar lista a tupla para trabajar con la tabla de Bootstrap
+    data=tuple(lol)      
+    #///////////////////////////////////////////////////////////////////////////////
+    #Redirecionar a la pagina Historial
+    return render_template("auth/tabla_bootstrap.html", headings=headings, data=data)
+@app.route('/data', methods=["GET", "POST"])
+def data():
+    global temp,bpm,spo2
+    # Data Format
+    # [TIME, Temperature, Humidity]
+
+    Temperature = float(temp)
+    Bpm = int(bpm)
+    Spo2=float(spo2)
+    data = [time.time() * 1000, Temperature, Bpm, Spo2]
+
+    response = make_response(json.dumps(data))
+
+    response.content_type = 'application/json'
+
+    return response    
+#Ejecutar flask
+if __name__ == '__main__':
+    app.config.from_object(config['development'])
+    csrf.init_app(app)
+    app.register_error_handler(401, estatus_401)
+    app.register_error_handler(404, estatus_404)
+    app.run("0.0.0.0",port=80)
+

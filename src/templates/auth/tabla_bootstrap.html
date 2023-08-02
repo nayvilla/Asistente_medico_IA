@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Historia Clínica</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src='https://use.fontawesome.com/releases/v5.0.13/js/all.js'></script>
+</head>
+<body>
+
+<div class="container mt-3">
+  <h2 class="text-center">Historia Clínica</h2>
+  <p>A continuación se muestra de forma detallada tus consultas con su respectivo diagnóstico:</p>
+  
+  <div class="table-responsive">
+    <table class="table table-bordered">
+      <thead class="table-dark">
+        <tr>
+            {% for header in headings %}
+            <th class="text-center">{{ header }}</th>
+            {% endfor %} 
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data %}
+        <tr>
+            {% for cell in row %}
+            <td class="text-center">{{ cell }}</td>
+            {% endfor %}  
+        </tr>
+        {% endfor %} 
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<form action="/login">
+  <div class="d-grid gap-2">
+    <a class="btn btn-dark btn-lg" href="{{ url_for('logout') }}">Salir</a>
+    <p class="text-center">Gracias por visitarnos!</p>
+  </div>
+</form>
+
+<!-- Footer -->
+<footer class="text-center text-lg-start bg-black text-muted">
+  <!-- Section: Social media -->
+  <section class="d-flex justify-content-center justify-content-lg-between p-4 border-bottom">
+    <!-- Left -->
+    <div class="me-5 d-none d-lg-block">
+      <span>Conéctate con nosotros en las redes sociales:</span>
+    </div>
+    <!-- Left -->
+
+    <!-- Right -->
+    <div>
+      <a href="https://www.facebook.com/aso.fisei.1" class="me-4 link-secondary">
+        <i class="fab fa-facebook-f"></i>
+      </a>
+      <a href="https://twitter.com/UTecnicaAmbato" class="me-4 link-secondary">
+        <i class="fab fa-twitter"></i>
+      </a>
+      <a href="https://goo.gl/maps/vWASVcNHPtr3cUWg9" class="me-4 link-secondary">
+        <i class="fab fa-google"></i>
+      </a>
+      <a href="https://www.instagram.com/utecnicaambato/" class="me-4 link-secondary">
+        <i class="fab fa-instagram"></i>
+      </a>
+      <a href="https://www.linkedin.com/school/universidad-t%C3%A9cnica-de-ambato/" class="me-4 link-secondary">
+        <i class="fab fa-linkedin"></i>
+      </a>
+      <a href="https://github.com/luhuisicnu/The-Flask-Mega-Tutorial-zh" class="me-4 link-secondary">
+        <i class="fab fa-github"></i>
+      </a>
+    </div>
+    <!-- Right -->
+  </section>
+  <!-- Section: Social media -->
+
+  <!-- Section: Links  -->
+  <section class="">
+    <div class="container text-center text-md-start mt-5">
+      <!-- Grid row -->
+      <div class="row mt-3">
+        <!-- Grid column -->
+        <div class="col-md-3 col-lg-4 col-xl-3 mx-auto mb-4">
+          <!-- Content -->
+          <h6 class="text-uppercase fw-bold mb-4">
+            <i class="fas fa-gem me-3 text-secondary"></i>UTA-FISEI
+          </h6>
+          <p>
+            Formar profesionales líderes competentes con visión humanista y pensamiento 
+            crítico a través de la Docencia, la Investigación y la Vinculación, que apliquen, 
+            promuevan y difundan el conocimiento respondiendo a las necesidades del país.
+          </p>
+        </div>
+        <!-- Grid column -->
+
+        <!-- Grid column -->
+        <div class="col-md-2 col-lg-2 col-xl-2 mx-auto mb-4">
+          <!-- Links -->
+          <h6 class="text-uppercase fw-bold mb-4">
+            Centros Médicos
+          </h6>
+          <p>
+            <a href="https://goo.gl/maps/msShdXyryEF72DPC6" class="text-reset">Hospital Regional Ambato</a>
+          </p>
+          <p>
+            <a href="https://goo.gl/maps/baus983us6kzyUpM6" class="text-reset">Hospital del IESS Ambato</a>
+          </p>
+          <p>
+            <a href="https://goo.gl/maps/MbQaYywpB7UKqcCM7" class="text-reset">Hospital Durán de Ambato</a>
+          </p>
+          <p>
+            <a href="https://goo.gl/maps/k6vWdZnXj2CYFW7X7" class="text-reset">Hospital Santa Inés Ambato</a>
+          </p>
+        </div>
+        <!-- Grid column -->
+
+        <!-- Grid column -->
+        <div class="col-md-3 col-lg-2 col-xl-2 mx-auto mb-4">
+          <!-- Links -->
+          <h6 class="text-uppercase fw-bold mb-4">
+            Enlaces útiles
+          </h6>
+          <p>
+            <a href="https://www.who.int/es/health-topics/coronavirus#tab=tab_1" class="text-reset">COVID-19</a>
+          </p>
+          <p>
+            <a href="https://www.uis.edu.co/intranet/calidad/documentos/bienestar_estudiantil/guias/GBE.15.pdf" class="text-reset">Resfriado común</a>
+          </p>
+          <p>
+            <a href="https://www.quironsalud.es/es/comunicacion/notas-prensa/oms-estima-40-poblacion-urbana-presenta-sintomas-rinitis-al#:~:text=La%20rinitis%20al%C3%A9rgica%20es%20un,una%20serie%20de%20s%C3%ADntomas%20caracter%C3%ADsticos." class="text-reset">Rinitis Alérgica</a>
+          </p>
+          <p>
+            <a href="https://apps.who.int/iris/bitstream/handle/10665/331860/WHO-2019-nCoV-SARI_treatment_center-2020.1-spa.pdf" class="text-reset">Infeciones respiratorias</a>
+          </p>
+        </div>
+        <!-- Grid column -->
+
+        <!-- Grid column -->
+        <div class="col-md-4 col-lg-3 col-xl-3 mx-auto mb-md-0 mb-4">
+          <!-- Links -->
+          <h6 class="text-uppercase fw-bold mb-4">Contacto-Soporte Técnico</h6>
+          <p><i class="fas fa-home me-3 text-secondary"></i> Parroquia Picahiua, Ambato-Ecuador</p>
+          <p><i class="fas fa-envelope me-3 text-secondary"></i>naythanvillafuerte1n@gmail.com</p>
+          <p><i class="fas fa-phone me-3 text-secondary"></i> +593 0969128272</p>
+          <p><i class="fas fa-phone me-3 text-secondary"></i> +593 0986366267</p>
+        </div>
+        <!-- Grid column -->
+      </div>
+      <!-- Grid row -->
+    </div>
+  </section>
+  <!-- Section: Links  -->
+
+  <!-- Copyright -->
+  <div class="text-center p-4" style="background-color: rgba(0, 0, 0, 0.025);">
+    © 2022 Copyright:
+    <a class="text-reset fw-bold" href="https://fisei.uta.edu.ec/v4.0/index.php/facultad/mision-vision/">FISEI.com</a>
+  </div>
+  <!-- Copyright -->
+</footer>
+<!-- Footer -->
+
+</body>
+</html>

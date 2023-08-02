@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html  lang="en" dir="ltr">
+<head>
+    
+  <title>Sensores</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content=" user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <!-- Bootstraps Java Scipts Links -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+
+
+    <!-- JQuery links  -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+
+    <!--High CHART LIVE  -->
+    <script src="http://code.highcharts.com/highcharts.js"></script>
+    <script src="http://code.highcharts.com/highcharts-more.js"></script>
+    <script src="http://code.highcharts.com/modules/exporting.js"></script>
+
+    <!--Gauge  -->
+    <script type="text/javascript" src="http://pubnub.github.io/eon/lib/eon.js"></script>
+
+
+</head>
+
+<body>
+
+    <div class="jumbotron jumbotron-fluid">
+        <h1 class="text-center text-blue">SIGNOS VITALES </h1>
+    </div>
+    <br>
+    <br>
+
+    <div class="container-fluid">
+
+        <div class="row">
+
+            <div class="col-5 jumbotron p-2 mx-1">
+                <h1 class="sensor1"> Sensor : </h1>
+            </div>
+            <br>
+
+            <div class="col-5 jumbotron p-2 mx-1">
+                <h1 class="sensor2">Sensor :</h1>
+            </div>
+            <br>
+
+            <div class="col-5 jumbotron p-2 mx-1">
+                <h1 class="sensor3">Sensor :</h1>
+            </div>
+            <br>
+
+
+
+        </div>
+    </div>
+
+    <style>
+
+        .jumbotron{
+            widows: 150px;
+            height: 220px;
+            justify-content: center;
+        }
+
+        .row{
+            justify-content: center;
+        }
+
+
+    </style>
+
+    <div class="container-fluid">
+        <!-- Example row of columns -->
+        <div class="row">
+            <div class="container-fluid" id="data-temperature">
+
+            </div>
+        </div>
+    </div>
+<br>
+<br>
+<br>
+
+    <div class="container-fluid">
+        <!-- Example row of columns -->
+        <div class="row">
+            <div class="container-fluid" id="data-bpm">
+
+            </div>
+        </div>
+    </div>
+    <br>
+    <br>
+    <br>
+    
+        <div class="container-fluid">
+            <!-- Example row of columns -->
+            <div class="row">
+                <div class="container-fluid" id="data-spo2">
+    
+                </div>
+            </div>
+        </div>
+
+
+    <script>
+        var chartTemperatue;
+        var chartBpm;
+        var chartSpo2;
+        console.log()
+        function requestData()
+        {
+            // Ajax call to get the Data from Flask
+            var requests = $.get('/data');
+
+            var tm = requests.done(function (result)
+            {
+                // Temperature
+                var seriesTemperature = chartTemperatue.series[0],
+                    shiftTemperature = seriesTemperature.data.length > 20;
+
+                // Humidity
+                var seriesBpm = chartBpm.series[0],
+                    shiftBpm = seriesBpm.data.length > 20;
+                var seriesSpo2 = chartSpo2.series[0],
+                shiftSpo2 = seriesSpo2.data.length > 20;
+
+                // Add the Point
+                // Time Temperature\
+                var data1 = [];
+                data1.push(result[0]);
+                data1.push(result[1]);
+                
+
+
+                // Add the Point
+                // Time Humidity
+                var data2 = [];
+                data2.push(result[0]);
+                data2.push(result[2]);
+
+                var data3 = [];
+                data3.push(result[0]);
+                data3.push(result[3]);
+
+                chartTemperatue.series[0].addPoint(data1, true, shiftTemperature);
+                chartBpm.series[0].addPoint(data2, true, shiftBpm);
+                chartSpo2.series[0].addPoint(data3, true, shiftSpo2);
+                $(".sensor1").text("");
+                $(".sensor1").text("Temperatura (°C) : " +  Math.round(data1[1]) );
+
+                $(".sensor2").text("");
+                $(".sensor2").text("Bpm : " +  Math.round(data2[1]) );
+
+                $(".sensor3").text("");
+                $(".sensor3").text("Spo2 (%): " +  Math.round(data3[1]) );
+
+                // call it again after one second
+                setTimeout(requestData, 2000);
+
+            });
+        }
+
+        $(document).ready(function()
+        {
+            // --------------Chart 1 ----------------------------
+            chartTemperatue = new Highcharts.Chart({
+                chart:
+                    {
+                    renderTo: 'data-temperature',
+                    defaultSeriesType: 'area',
+                    events: {
+                        load: requestData
+                            }
+                    },
+                title:
+                    {
+                    text: 'TEMPERATURA'
+                    },
+                xAxis: {
+                    type: 'datetime',
+                    tickPixelInterval: 150,
+                    maxZoom: 20 * 1000,
+		    title: {
+                        text: 'Hora (h/m/s)',
+                        margin: 80
+                            }
+                        },
+                yAxis: {
+                    minPadding: 0.2,
+                    maxPadding: 0.2,
+                    title: {
+                        text: 'Grado Celsius (°C)',
+                        margin: 80
+                            }
+                         },
+                series: [{
+                    color : '#c23d23',
+                    lineColor: '#303030',
+                    name: 'Temperatura',
+                    data: []
+                }]
+            });
+            // --------------Chart 1 Ends - -----------------
+
+            chartBpm = new Highcharts.Chart({
+                chart:
+                    {
+                        renderTo: 'data-bpm',
+                        defaultSeriesType: 'area',
+                        events: {
+                            load: requestData
+                        }
+                    },
+                title:
+                    {
+                        text: 'PULSOS DEL CORAZÓN'
+                    },
+                xAxis: {
+                    type: 'datetime',
+                    tickPixelInterval: 150,
+                    maxZoom: 20 * 1000,
+		    title: {
+                        text: 'Hora (h/m/s)',
+                        margin: 80
+                            }
+                },
+                yAxis: {
+                    minPadding: 0.2,
+                    maxPadding: 0.2,
+                    title: {
+                        text: 'Bpm',
+                        margin: 80
+                    }
+                },
+                series: [{
+                    lineColor: '#1d82b8',
+                    name: 'Bpm',
+                    data: []
+                }]
+            });
+            chartSpo2 = new Highcharts.Chart({
+                chart:
+                    {
+                        renderTo: 'data-spo2',
+                        defaultSeriesType: 'area',
+                        events: {
+                            load: requestData
+                        }
+                    },
+                title:
+                    {
+                        text: 'SATURACIÓN DE OXÍGENO'
+                    },
+                xAxis: {
+                    type: 'datetime',
+                    tickPixelInterval: 150,
+                    maxZoom: 20 * 1000,
+		    title: {
+                        text: 'Hora (h/m/s)',
+                        margin: 80
+                            }
+                },
+                yAxis: {
+                    minPadding: 0.2,
+                    maxPadding: 0.2,
+                    title: {
+                        text: 'Spo2 (%)',
+                        margin: 80
+                    }
+                },
+                series: [{
+                    lineColor: '#1d82b8',
+                    name: 'Spo2',
+                    data: []
+                }]
+            });
+
+
+        });
+    </script>
+
+
+
+    <main class="form-signin w-100 m-auto">
+    <form action="/chat">
+        <button class="w-100 btn btn-lg btn-primary" type="submit">Asistente Médico</button>
+    </form>
+</main>
+</body>
+
+
+</html>

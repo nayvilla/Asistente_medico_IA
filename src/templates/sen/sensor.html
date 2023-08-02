@@ -1,0 +1,20 @@
+{% extends 'sen/base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css')}}", style="left: 500cm;">
+<div class="jumbotron jumbotron-fluid", style="left: 500cm;">
+  <div class="container">
+    <h1 class="display-4">Signos Vitales</h1>
+    <br>
+    <br>
+    <h3 class="Tem">Temperatura <strong> {{temperatura}} </strong> C </h3>
+    <h3 class="Hum">Bpm <strong> {{bpm}} </strong> </h3>
+    <h3 class="Tem">Spo2 <strong> {{spo2}} </strong>  </h3>
+    <br>
+    <br>
+  </div>
+</div>
+<form action="/chat">
+  <button class="w-100 btn btn-lg btn-primary" type="submit">Chatboot</button>
+</form>
+
+{%  endblock  %}
