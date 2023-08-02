@@ -17,7 +17,9 @@ Interfaz de Historia Clínica
 ![image](https://github.com/nayvilla/Asistente_medico_IA/assets/94719402/4c755ba2-0752-4f5c-8f84-e8855963da9a)
 
 Dispositivo electrónico para la medicion de signos vitales
+
 ![image](https://github.com/nayvilla/Asistente_medico_IA/assets/94719402/1373de39-176a-46a0-8fa9-3f4c217f1bad)
+
 
 CONCLUCIONES:
 
